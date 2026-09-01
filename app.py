@@ -1,141 +1,63 @@
-!pip install groq gradio gtts
-
-import os
-from getpass import getpass
-
-os.environ["GROQ_API_KEY"] = getpass("Enter your Groq API Key: ")
-
+import streamlit as st
 from groq import Groq
-from gtts import gTTS
-import os
 
-client = Groq(
-    api_key=os.environ["GROQ_API_KEY"]
+# Page configuration
+st.set_page_config(
+    page_title="Gen AI Chatbot",
+    page_icon="🤖",
+    layout="centered"
 )
 
+# Title
+st.title("🤖 Gen AI Chatbot")
+st.write("Chat with an AI powered by Groq")
 
-def voice_chat(audio, history):
+# Groq API
+client = Groq(
+    api_key=st.secrets["GROQ_API_KEY"]
+)
 
-    if audio is None:
-        return history, None
+# Store conversation
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    # 🎤 Voice to Text
-    with open(audio, "rb") as file:
+# Display previous messages
+for message in st.session_state.messages:
 
-        transcription = client.audio.transcriptions.create(
-            file=file,
-            model="whisper-large-v3-turbo"
-        )
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-    user_text = transcription.text
 
-    # 🤖 Prepare conversation
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a friendly and helpful AI voice assistant."
-        }
-    ]
+# User input
+prompt = st.chat_input("Type your message here...")
 
-    # Add previous messages
-    for user_message, ai_message in history:
+if prompt:
 
-        messages.append({
-            "role": "user",
-            "content": user_message
-        })
+    # Display user message
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
-        messages.append({
-            "role": "assistant",
-            "content": ai_message
-        })
-
-    # Add current question
-    messages.append({
+    # Save user message
+    st.session_state.messages.append({
         "role": "user",
-        "content": user_text
+        "content": prompt
     })
 
-    # 🤖 Groq AI
+    # Send conversation to Groq
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=messages
+        messages=st.session_state.messages
     )
 
-    ai_text = response.choices[0].message.content
+    # Get AI response
+    answer = response.choices[0].message.content
 
-    # 🔊 Text to Speech
-    tts = gTTS(
-        text=ai_text,
-        lang="en"
-    )
+    # Display AI response
+    with st.chat_message("assistant"):
+        st.markdown(answer)
 
-    output_file = "ai_response.mp3"
-
-    tts.save(output_file)
-
-    # Save conversation
-    history.append(
-        (user_text, ai_text)
-    )
-
-    return history, output_file
-
-import gradio as gr
-
-
-with gr.Blocks(
-    title="Groq AI Voice Chatbot"
-) as demo:
-
-    gr.Markdown(
-        """
-        # 🤖 Groq AI Voice Chatbot
-
-        ### 🎤 Speak with your AI assistant
-        """
-    )
-
-    chatbot = gr.Chatbot(
-        label="Conversation"
-    )
-
-    microphone = gr.Audio(
-        sources=["microphone"],
-        type="filepath",
-        label="🎤 Speak"
-    )
-
-    response_audio = gr.Audio(
-        label="🔊 AI Response",
-        autoplay=True
-    )
-
-    clear_button = gr.Button(
-        "🗑️ Clear Chat"
-    )
-
-    microphone.change(
-        voice_chat,
-        inputs=[
-            microphone,
-            chatbot
-        ],
-        outputs=[
-            chatbot,
-            response_audio
-        ]
-    )
-
-    clear_button.click(
-        lambda: ([], None),
-        outputs=[
-            chatbot,
-            response_audio
-        ]
-    )
-
-
-demo.launch(
-    share=True
-)
+    # Save AI response
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": answer
+    })
