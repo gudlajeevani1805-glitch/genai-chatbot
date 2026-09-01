@@ -1,63 +1,64 @@
 import streamlit as st
 from groq import Groq
 
-# Page configuration
 st.set_page_config(
-    page_title="Gen AI Chatbot",
-    page_icon="🤖",
-    layout="centered"
+    page_title="Groq AI Chatbot",
+    page_icon="🤖"
 )
 
-# Title
-st.title("🤖 Gen AI Chatbot")
-st.write("Chat with an AI powered by Groq")
+st.title("🤖 Groq AI Chatbot")
+st.write("Chat with an AI assistant powered by Groq")
 
-# Groq API
+# Get API key from Streamlit Secrets
 client = Groq(
     api_key=st.secrets["GROQ_API_KEY"]
 )
 
-# Store conversation
+# Store chat history
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful AI assistant. Give clear and simple answers."
+        }
+    ]
 
 # Display previous messages
 for message in st.session_state.messages:
-
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-
+    if message["role"] != "system":
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
 
 # User input
-prompt = st.chat_input("Type your message here...")
+prompt = st.chat_input("Ask me anything...")
 
 if prompt:
-
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Save user message
+    # Add user message
     st.session_state.messages.append({
         "role": "user",
         "content": prompt
     })
 
-    # Send conversation to Groq
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=st.session_state.messages
-    )
+    with st.chat_message("user"):
+        st.write(prompt)
 
-    # Get AI response
-    answer = response.choices[0].message.content
+    # Get Groq response
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=st.session_state.messages
+        )
 
-    # Display AI response
-    with st.chat_message("assistant"):
-        st.markdown(answer)
+        answer = response.choices[0].message.content
 
-    # Save AI response
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": answer
-    })
+        # Add assistant response
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": answer
+        })
+
+        with st.chat_message("assistant"):
+            st.write(answer)
+
+    except Exception as e:
+        st.error(f"Error: {e}")
