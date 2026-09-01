@@ -1,2 +1,2 @@
 # genai-chatbot
-Gen AI Chatbot using Groq API and Gradio
+Gen AI Chatbot using Groq API 
